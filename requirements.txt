@@ -1,0 +1,28 @@
+# ---- Core API framework ----
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+
+# ---- Persistence ----
+SQLAlchemy>=2.0.0
+# psycopg2-binary>=2.9.9          # enable for PostgreSQL (defaults to SQLite locally)
+
+# ---- Security ----
+PyJWT>=2.8.0
+cryptography>=42.0.0
+
+# ---- CAM rendering ----
+reportlab>=4.0.0                 # PDF CAM output (Requirement 15.1)
+matplotlib>=3.8.0                # circular-trading graph image >=300 DPI (Requirement 29.5)
+
+# ---- Optional / pluggable integrations (graceful fallbacks if absent) ----
+# networkx>=3.2                  # alternative graph backend for fraud detection
+# httpx>=0.27.0                  # live web research agent
+# databricks-sql-connector>=3.0 # Delta Lake feature store
+# minio>=7.2.0                   # MinIO/S3 object storage backend
+
+# ---- Dev / tooling ----
+pytest>=8.0.0
+pytest-cov>=4.1.0

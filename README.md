@@ -2,6 +2,33 @@
 
 AI-powered corporate credit decisioning engine designed for the Indian lending ecosystem.
 
+> **Implementation status:** This repository now contains a complete, runnable
+> reference implementation of all 30 requirements in `requirements.md`
+> (FastAPI service + domain engine + tests). See **Quick Start** and
+> **Implementation Notes** below.
+
+## Quick Start
+
+```bash
+# From the repository root (absolute imports require running from here)
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Run the API (creates a local SQLite DB and seeds a default admin on startup)
+uvicorn main:app --reload
+# Interactive API docs:  http://localhost:8000/docs
+# Default dev credentials: admin / admin123  (override via ADMIN_USERNAME / ADMIN_PASSWORD)
+
+# Run the test suite (31 tests covering scoring, fraud, parsing, CAM, EWS, API)
+pytest tests/ -q
+```
+
+No external infrastructure is required to run locally: PostgreSQL falls back to
+SQLite, MinIO/S3 falls back to encrypted local storage, and the Databricks Delta
+feature store falls back to a local versioned (time-travel) store. Configure the
+real services via environment variables in `.env` (see `.env.example`).
+
+
 ## Overview
 
 Intelli-Credit provides end-to-end credit analysis automation while maintaining human oversight through a Credit Officer review workflow. The system ingests multiple document types, performs fraud detection, calculates creditworthiness using the Five Cs framework with temporal decay, generates explainable Credit Appraisal Memos (CAMs), and provides ongoing portfolio monitoring.
@@ -188,3 +215,61 @@ Proprietary - All rights reserved
 ## Support
 
 For support and questions, contact the development team.
+
+
+## Implementation Notes
+
+### Module map
+
+| Layer | Modules | Key requirements |
+|-------|---------|------------------|
+| Config | `config/settings.py`, `database.py`, `storage.py`, `databricks.py` | 19, 27 |
+| Utilities | `utils/temporal.py` (decay), `numeric.py`, `logging.py` | 14.4, 10.4, 28.3 |
+| Parsing | `services/document_parser.py`, `financial_parser.py`, `gst_parser.py`, `bank_parser.py` | 1-4, 24 |
+| Fraud / external | `services/fraud_detector.py`, `external_apis.py` | 5-8 |
+| Scoring | `services/ratios.py`, `scoring.py` | 9-14, 26 |
+| CAM / viz | `services/cam_generator.py`, `graph_viz.py` | 15, 16, 29, 30 |
+| Monitoring | `services/ews_monitor.py` | 17, 18 |
+| Security | `services/security.py`, `audit.py` | 19, 23, 25 |
+| Platform | `services/feature_store.py`, `research_agent.py`, `reports.py` | 22, 27, 28 |
+| Orchestration | `services/credit_engine.py` | 14, 20 |
+| API | `main.py`, `api/routes.py`, `deps.py`, `schemas.py`, `store.py` | 21-23 |
+
+### Document parsing architecture
+
+Document ingestion classifies and validates uploads, while the financial/GST/bank
+parsers operate on **structured records** (dicts) produced by an upstream OCR/LLM
+extraction layer. This keeps the deterministic, testable business logic (accounting-
+identity validation, ITC reconciliation, transaction categorization, conduct metrics)
+decoupled from the pluggable raw-text extraction step. The structured contract for
+each parser is documented in its module docstring.
+
+### Optional integrations (graceful fallbacks)
+
+- **PDF / graph image** — `reportlab` + `matplotlib` produce the CAM PDF and the
+  300 DPI circular-trading graph (Req 15.1, 29.5); without them the CAM is stored
+  as text and the graph as a structured spec.
+- **Object storage** — set `STORAGE_BACKEND=minio`; otherwise encrypted files are
+  written to `./_storage`.
+- **Databricks Delta Lake** — set `DATABRICKS_ENABLED=true` with host/token/path;
+  otherwise a local partitioned, versioned JSON store provides the same API
+  (lineage + time-travel) under `./_delta_feature_store`.
+- **Research agent** — uses `httpx` for live crawling when enabled, or ranks and
+  classifies findings supplied by an upstream search connector.
+
+### Security & compliance
+
+- Documents and sensitive fields are encrypted with AES-256 (Fernet).
+- Passwords are hashed with PBKDF2-HMAC-SHA256; API auth uses OAuth2 JWT bearer
+  tokens with three RBAC roles (Analyst, Credit_Officer, Administrator).
+- Every state-changing action is written to a 7-year-retention audit log.
+- API requests are rate-limited (default 100/min/client) and malformed requests
+  return HTTP 400 with structured error detail.
+
+### Requirements traceability
+
+All 30 requirements in `requirements.md` are implemented; thresholds called out in
+the acceptance criteria (e.g. ITC mismatch > 5%, DSCR < 1.25, D/E > 3.0, LTV > 75%
+after type-specific haircuts, circular-trading ratio > 15%, classification
+confidence < 85%) are encoded as named constants in the relevant service modules
+and covered by the test suite in `tests/`.
