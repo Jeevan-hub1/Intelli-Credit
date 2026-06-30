@@ -144,19 +144,20 @@ def run_analysis(app_id: str, body: AnalyzeRequest, db: Session = Depends(get_db
 
 
 @router.get("/applications/{app_id}/results", tags=["analysis"])
-def get_results(app_id: str, user: CurrentUser = Depends(get_current_user)):
+def get_results(app_id: str, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     """Retrieve the detailed analysis result (Requirement 23.1)."""
-    result = store.load_result(app_id)
-    if not result:
+    score = store.load_credit_score(db, app_id)
+    if not score:
         raise HTTPException(status_code=404, detail="No analysis found for this application")
-    return result.credit_score.model_dump(mode="json")
+    return score.model_dump(mode="json")
 
 
 @router.get("/applications/{app_id}/cam", tags=["cam"])
-def get_cam(app_id: str, version: int | None = None,
+def get_cam(app_id: str, version: int | None = None, db: Session = Depends(get_db),
             user: CurrentUser = Depends(get_current_user)):
     """Get a CAM (latest or a specific version)."""
-    versions = store.list_cam_versions(app_id)
+    versions = store.list_cam_versions(app_id, db)
     if not versions:
         raise HTTPException(status_code=404, detail="No CAM found")
     cam = versions[-1] if version is None else next((c for c in versions if c.version == version), None)
@@ -167,9 +168,10 @@ def get_cam(app_id: str, version: int | None = None,
 
 
 @router.get("/applications/{app_id}/cam/versions", tags=["cam"])
-def list_versions(app_id: str, user: CurrentUser = Depends(get_current_user)):
+def list_versions(app_id: str, db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
     """List all CAM versions for an application (Requirement 30.1)."""
-    versions = store.list_cam_versions(app_id)
+    versions = store.list_cam_versions(app_id, db)
     return [{"version": c.version, "overall_score": c.overall_score,
              "recommendation": c.recommendation.value, "is_final": c.is_final,
              "generated_by": c.generated_by, "modification_reason": c.modification_reason}
@@ -177,10 +179,10 @@ def list_versions(app_id: str, user: CurrentUser = Depends(get_current_user)):
 
 
 @router.get("/applications/{app_id}/cam/compare", tags=["cam"])
-def compare_versions(app_id: str, v1: int, v2: int,
+def compare_versions(app_id: str, v1: int, v2: int, db: Session = Depends(get_db),
                      user: CurrentUser = Depends(get_current_user)):
     """Side-by-side comparison of two CAM versions (Requirement 30.5)."""
-    versions = {c.version: c for c in store.list_cam_versions(app_id)}
+    versions = {c.version: c for c in store.list_cam_versions(app_id, db)}
     if v1 not in versions or v2 not in versions:
         raise HTTPException(status_code=404, detail="One or both versions not found")
     a, b = versions[v1], versions[v2]

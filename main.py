@@ -5,6 +5,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -56,7 +57,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """Return HTTP 400 with specific error details for malformed requests (Req 23.3)."""
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"code": "MALFORMED_REQUEST", "detail": exc.errors()},
+        content={"code": "MALFORMED_REQUEST", "detail": jsonable_encoder(exc.errors())},
     )
 
 
