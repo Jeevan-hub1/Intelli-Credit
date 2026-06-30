@@ -1,11 +1,15 @@
 """Pydantic request/response schemas for the REST API."""
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from models.base import FiveCDimension, Sentiment, Severity
+from services.external_apis import validate_gstin
+
+_PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
 
 
 class TokenResponse(BaseModel):
@@ -22,6 +26,20 @@ class BorrowerIn(BaseModel):
     industry: str = "unclassified"
     business_description: Optional[str] = None
     director_names: list[str] = Field(default_factory=list)
+
+    @field_validator("gstin")
+    @classmethod
+    def _check_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v and not validate_gstin(v):
+            raise ValueError("Invalid GSTIN format (expected 15-char GSTIN)")
+        return v
+
+    @field_validator("pan")
+    @classmethod
+    def _check_pan(cls, v: Optional[str]) -> Optional[str]:
+        if v and not _PAN_RE.match(v):
+            raise ValueError("Invalid PAN format (expected AAAAA9999A)")
+        return v
 
 
 class CollateralIn(BaseModel):

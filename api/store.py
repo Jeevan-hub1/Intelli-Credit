@@ -90,8 +90,39 @@ def persist_cam(db: Session, cam: CAM) -> None:
 
 
 def load_result(app_id: str) -> Optional[AnalysisResult]:
+    """Return the live in-memory analysis result (needed for override/regeneration)."""
     return registry.results.get(app_id)
 
 
-def list_cam_versions(app_id: str) -> list[CAM]:
-    return registry.cam_versions.get(app_id, [])
+def load_credit_score(db: Session, app_id: str) -> Optional[CreditScore]:
+    """Return the credit score from the registry, falling back to the database.
+
+    This makes read endpoints durable across restarts and multi-worker
+    deployments where the in-process registry may be empty.
+    """
+    live = registry.results.get(app_id)
+    if live is not None:
+        return live.credit_score
+    row = (
+        db.query(DBCreditScore)
+        .filter(DBCreditScore.application_id == app_id)
+        .order_by(DBCreditScore.created_at.desc())
+        .first()
+    )
+    return CreditScore.model_validate(row.payload) if row else None
+
+
+def list_cam_versions(app_id: str, db: Optional[Session] = None) -> list[CAM]:
+    """List CAM versions from the registry, falling back to the database."""
+    live = registry.cam_versions.get(app_id)
+    if live:
+        return live
+    if db is None:
+        return []
+    rows = (
+        db.query(DBCAM)
+        .filter(DBCAM.application_id == app_id)
+        .order_by(DBCAM.version)
+        .all()
+    )
+    return [CAM.model_validate(r.payload) for r in rows]
