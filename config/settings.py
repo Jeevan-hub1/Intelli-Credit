@@ -72,6 +72,12 @@ if _HAS_PYDANTIC_SETTINGS:
         # Rate limiting
         rate_limit_per_minute: int = Field(default=100, alias="RATE_LIMIT_PER_MINUTE")
 
+        # Async job backend ("local" thread pool, or "celery" when a broker is set)
+        job_backend: str = Field(default="local", alias="JOB_BACKEND")
+        celery_broker_url: Optional[str] = Field(default=None, alias="CELERY_BROKER_URL")
+        celery_result_backend: Optional[str] = Field(default=None, alias="CELERY_RESULT_BACKEND")
+        redis_url: Optional[str] = Field(default=None, alias="REDIS_URL")
+
         @property
         def effective_database_url(self) -> str:
             """Return configured DB URL or a local SQLite fallback."""
