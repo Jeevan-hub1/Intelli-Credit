@@ -16,7 +16,7 @@ filterwarnings = [
 source = ["."]
 branch = false
 concurrency = ["thread"]
-omit = ["tests/*", "setup.py", "main.py"]
+omit = ["tests/*", "setup.py", "main.py", "migrations/*"]
 
 [tool.coverage.report]
 show_missing = true
