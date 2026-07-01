@@ -1,4 +1,5 @@
 """Unit tests for numeric helpers and the research agent (Req 28)."""
+
 from models.base import Sentiment
 from services.research_agent import classify_authority, classify_sentiment, research_borrower
 from utils.numeric import cagr, clamp, pct_change, safe_div
@@ -34,12 +35,23 @@ def test_classify_sentiment():
 
 
 def test_research_ranking_authority_and_recency():
-    findings = research_borrower("Acme Ltd", raw_results=[
-        {"title": "RBI penalty", "snippet": "fraud probe", "url": "https://rbi.org.in/x",
-         "published_date": "2026-06-20T00:00:00+00:00"},
-        {"title": "growth", "snippet": "record profit", "url": "https://news.example.com/a",
-         "published_date": "2024-01-01T00:00:00+00:00"},
-    ])
+    findings = research_borrower(
+        "Acme Ltd",
+        raw_results=[
+            {
+                "title": "RBI penalty",
+                "snippet": "fraud probe",
+                "url": "https://rbi.org.in/x",
+                "published_date": "2026-06-20T00:00:00+00:00",
+            },
+            {
+                "title": "growth",
+                "snippet": "record profit",
+                "url": "https://news.example.com/a",
+                "published_date": "2024-01-01T00:00:00+00:00",
+            },
+        ],
+    )
     # Government + recent ranks first; news + old ranks last.
     assert findings[0].source_authority == "government"
     assert findings[0].sentiment == Sentiment.ADVERSE

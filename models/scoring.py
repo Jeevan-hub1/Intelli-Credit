@@ -1,4 +1,5 @@
 """Scoring, fraud, compliance, and research domain models."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -17,8 +18,8 @@ from models.base import (
     utcnow,
 )
 
-
 # ----------------------------- Fraud --------------------------------------
+
 
 class TransactionCycle(IntelliBaseModel):
     """A detected circular-trading cycle (Requirement 5)."""
@@ -48,8 +49,8 @@ class FraudReport(IntelliBaseModel):
     has_critical: bool = False
 
 
-
 # -------------------- Compliance / litigation / research -------------------
+
 
 class ComplianceCheck(IntelliBaseModel):
     """MCA21 compliance verification result (Requirement 7)."""
@@ -88,15 +89,17 @@ class ResearchFinding(IntelliBaseModel):
     title: str
     summary: str
     url: str
-    source_authority: str = Field(..., description="government | rating_agency | news | social_media")
+    source_authority: str = Field(
+        ..., description="government | rating_agency | news | social_media"
+    )
     recency: str = Field(..., description="HIGH | MEDIUM | LOW")
     sentiment: Sentiment = Sentiment.NEUTRAL
     retrieved_at: datetime = Field(default_factory=utcnow)
     rank_score: float = 0.0
 
 
-
 # ------------------------- Qualitative notes -------------------------------
+
 
 class QualitativeNote(IntelliBaseModel):
     """Credit officer qualitative observation (Requirement 26)."""
@@ -112,6 +115,7 @@ class QualitativeNote(IntelliBaseModel):
 
 
 # --------------------------- Credit scores ---------------------------------
+
 
 class DimensionScore(IntelliBaseModel):
     """Score for a single C of the Five Cs."""

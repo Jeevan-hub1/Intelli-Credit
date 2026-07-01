@@ -1,4 +1,5 @@
 """Bank statement parsing service (Requirement 4)."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -10,7 +11,7 @@ from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-CATEGORY_CONFIDENCE_THRESHOLD = 0.80   # Requirement 4.3
+CATEGORY_CONFIDENCE_THRESHOLD = 0.80  # Requirement 4.3
 
 # Keyword -> (category, base confidence) rules for categorization (Req 4.2).
 _CATEGORY_RULES: list[tuple[tuple[str, ...], str, float]] = [
@@ -49,11 +50,12 @@ def categorize(description: str) -> tuple[str, float]:
     text = (description or "").lower()
     for keywords, category, confidence in _CATEGORY_RULES:
         if any(kw in text for kw in keywords):
-            if confidence < CATEGORY_CONFIDENCE_THRESHOLD:
+            if (
+                confidence < CATEGORY_CONFIDENCE_THRESHOLD
+            ):  # pragma: no cover - no rule below threshold
                 return "uncategorized", confidence
             return category, confidence
     return "uncategorized", 0.0
-
 
 
 def _num(value: Any) -> float:
@@ -104,7 +106,6 @@ def _conduct(transactions: list[Transaction]) -> ConductMetrics:
         bounced_transaction_count=bounced,
         overdraft_instances=overdrafts,
     )
-
 
 
 def parse_bank_statement(raw: dict[str, Any]) -> BankStatement:

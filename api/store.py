@@ -4,6 +4,7 @@ Summaries are persisted to the database for durability and audit; the full
 in-memory analysis artifacts (scoring context, CAM versions) are kept in a
 process registry to support fast review/override workflows.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -11,10 +12,11 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from models.application import Application
+from models.base import FiveCDimension, Sentiment, Severity, score_to_risk_band
 from models.cam import CAM
-from models.db_models import DBApplication, DBCAM, DBCreditScore
-from models.scoring import CreditScore
-from services.credit_engine import AnalysisResult
+from models.db_models import DBCAM, DBApplication, DBCreditScore, DBOverride, DBQualitativeNote
+from models.scoring import CreditScore, QualitativeNote
+from services.credit_engine import AnalysisRequest, AnalysisResult, analyze
 
 
 class _Registry:
@@ -54,7 +56,6 @@ def persist_application(db: Session, app: Application) -> DBApplication:
     db.commit()
     db.refresh(row)
     return row
-
 
 
 def persist_credit_score(db: Session, app_id: str, score: CreditScore) -> None:
@@ -119,10 +120,95 @@ def list_cam_versions(app_id: str, db: Optional[Session] = None) -> list[CAM]:
         return live
     if db is None:
         return []
-    rows = (
-        db.query(DBCAM)
-        .filter(DBCAM.application_id == app_id)
-        .order_by(DBCAM.version)
+    rows = db.query(DBCAM).filter(DBCAM.application_id == app_id).order_by(DBCAM.version).all()
+    return [CAM.model_validate(r.payload) for r in rows]
+
+
+def persist_analysis_input(
+    db: Session, app_id: str, analyze_body: dict, *, model_version: str, generated_by: str
+) -> None:
+    """Persist the raw analysis inputs so the analysis can be rehydrated later."""
+    row = db.get(DBApplication, app_id)
+    if row is None:
+        return
+    row.analysis_input = {
+        "body": analyze_body,
+        "model_version": model_version,
+        "generated_by": generated_by,
+    }
+    db.commit()
+
+
+def _replay_adjustments(db: Session, app_id: str, score: CreditScore) -> None:
+    """Re-apply persisted qualitative notes and overrides to a rebuilt score."""
+    from services.scoring import apply_qualitative_notes
+
+    notes = (
+        db.query(DBQualitativeNote)
+        .filter(DBQualitativeNote.application_id == app_id)
+        .order_by(DBQualitativeNote.created_at)
         .all()
     )
-    return [CAM.model_validate(r.payload) for r in rows]
+    domain_notes = [
+        QualitativeNote(
+            officer_id=n.officer_id,
+            text=n.text,
+            dimension=FiveCDimension(n.dimension) if n.dimension else None,
+            sentiment=Sentiment(n.sentiment),
+            severity=Severity(n.severity),
+            score_impact=n.score_impact,
+        )
+        for n in notes
+    ]
+    if domain_notes:
+        apply_qualitative_notes(score.dimensions, domain_notes)
+
+    overrides = (
+        db.query(DBOverride)
+        .filter(DBOverride.application_id == app_id)
+        .order_by(DBOverride.created_at)
+        .all()
+    )
+    for ov in overrides:
+        dim = score.dimension(FiveCDimension(ov.dimension))
+        if dim:
+            dim.score = ov.new_score
+            dim.overridden = True
+            dim.override_reason = ov.reason
+            dim.is_critical_weakness = dim.score < 30
+
+    if domain_notes or overrides:
+        from models.base import FIVE_C_WEIGHTS  # noqa: F401
+
+        score.overall_score = round(sum(d.score * d.weight for d in score.dimensions), 2)
+        score.risk_band = score_to_risk_band(score.overall_score)
+        score.critical_weaknesses = [
+            d.dimension for d in score.dimensions if d.is_critical_weakness
+        ]
+
+
+def rehydrate(db: Session, app_id: str) -> Optional[AnalysisResult]:
+    """Return the live analysis result, rebuilding it from the DB on a cache miss.
+
+    Makes the review/override workflow durable across restarts and workers: the
+    base analysis is recomputed from the persisted input snapshot and then any
+    persisted qualitative notes and overrides are replayed.
+    """
+    live = registry.results.get(app_id)
+    if live is not None:
+        return live
+    row = db.get(DBApplication, app_id)
+    if row is None or not row.analysis_input:
+        return None
+    snapshot = row.analysis_input
+    application = Application.model_validate(row.payload)
+    req = AnalysisRequest(application=application, **snapshot.get("body", {}))
+    result = analyze(
+        req,
+        model_version=snapshot.get("model_version", "1.0.0"),
+        generated_by=snapshot.get("generated_by"),
+        persist_features=False,
+    )
+    _replay_adjustments(db, app_id, result.credit_score)
+    registry.results[app_id] = result
+    return result

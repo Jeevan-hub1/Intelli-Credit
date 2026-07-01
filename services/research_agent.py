@@ -5,6 +5,7 @@ classifies sentiment, and cites source URLs with retrieval timestamps. Live
 crawling uses httpx when available and enabled; otherwise the agent ranks and
 classifies findings supplied by an upstream search connector.
 """
+
 from __future__ import annotations
 
 import time
@@ -27,10 +28,30 @@ _RECENCY_WEIGHT = {Recency.HIGH: 1.0, Recency.MEDIUM: 0.6, Recency.LOW: 0.3}
 _GOV_DOMAINS = ("rbi.org.in", "sebi.gov.in", "mca.gov.in", "gov.in", "nic.in")
 _RATING_DOMAINS = ("crisil.com", "icra.in", "careratings.com", "indiaratings.co.in")
 
-_ADVERSE_WORDS = ("fraud", "default", "downgrade", "probe", "scam", "insolvency",
-                  "penalty", "litigation", "loss", "decline", "raid")
-_POSITIVE_WORDS = ("growth", "profit", "expansion", "upgrade", "award", "record",
-                   "surge", "partnership", "approval")
+_ADVERSE_WORDS = (
+    "fraud",
+    "default",
+    "downgrade",
+    "probe",
+    "scam",
+    "insolvency",
+    "penalty",
+    "litigation",
+    "loss",
+    "decline",
+    "raid",
+)
+_POSITIVE_WORDS = (
+    "growth",
+    "profit",
+    "expansion",
+    "upgrade",
+    "award",
+    "record",
+    "surge",
+    "partnership",
+    "approval",
+)
 
 
 def classify_authority(url: str, declared: Optional[str] = None) -> str:
@@ -59,15 +80,17 @@ def classify_sentiment(text: str) -> Sentiment:
     return Sentiment.NEUTRAL
 
 
-
 def _to_finding(raw: dict, *, reference: datetime) -> ResearchFinding:
     """Build a ranked, classified ResearchFinding from a raw search result."""
     url = str(raw.get("url", ""))
     authority = classify_authority(url, raw.get("source_authority"))
     published = raw.get("published_date") or raw.get("publishedDate")
     try:
-        pub_dt = (datetime.fromisoformat(str(published).replace("Z", "+00:00"))
-                  if published else reference)
+        pub_dt = (
+            datetime.fromisoformat(str(published).replace("Z", "+00:00"))
+            if published
+            else reference
+        )
     except ValueError:
         pub_dt = reference
     recency = classify_recency(pub_dt, reference=reference)
@@ -105,7 +128,9 @@ def research_borrower(
 
     results = list(raw_results or [])
     if not results and settings.research_agent_enabled:
-        results = _live_fetch(company_name, director_names or [], deadline=started + timeout)
+        results = _live_fetch(  # pragma: no cover - live network path
+            company_name, director_names or [], deadline=started + timeout
+        )
 
     findings = [_to_finding(r, reference=reference) for r in results]
     findings.sort(key=lambda f: f.rank_score, reverse=True)
@@ -114,8 +139,9 @@ def research_borrower(
     return findings
 
 
-
-def _live_fetch(company_name: str, director_names: list[str], *, deadline: float) -> list[dict]:
+def _live_fetch(
+    company_name: str, director_names: list[str], *, deadline: float
+) -> list[dict]:  # pragma: no cover - live network path
     """Best-effort live fetch of public regulatory pages via httpx (optional).
 
     Returns raw result dicts. Silently returns an empty list if httpx is
@@ -139,12 +165,14 @@ def _live_fetch(company_name: str, director_names: list[str], *, deadline: float
                 try:
                     resp = client.get(q, headers={"User-Agent": "IntelliCredit-Research/1.0"})
                     if resp.status_code == 200:
-                        results.append({
-                            "title": f"Web result for {company_name}",
-                            "summary": resp.text[:300],
-                            "url": str(resp.url),
-                            "published_date": datetime.now(timezone.utc).isoformat(),
-                        })
+                        results.append(
+                            {
+                                "title": f"Web result for {company_name}",
+                                "summary": resp.text[:300],
+                                "url": str(resp.url),
+                                "published_date": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
                 except Exception as exc:  # pragma: no cover - network dependent
                     logger.warning("Research fetch failed for %s: %s", q, exc)
     except Exception as exc:  # pragma: no cover

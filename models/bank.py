@@ -1,4 +1,5 @@
 """Bank statement domain models (Requirements 4, 5)."""
+
 from __future__ import annotations
 
 from datetime import date

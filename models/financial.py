@@ -1,4 +1,5 @@
 """Financial statement domain models (Requirements 2, 10, 11, 24)."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -42,7 +43,6 @@ class BalanceSheet(IntelliBaseModel):
             return True
         denom = max(abs(self.total_assets), 1.0)
         return abs(self.total_assets - expected) / denom <= tolerance
-
 
 
 class ProfitAndLoss(IntelliBaseModel):

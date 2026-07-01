@@ -3,6 +3,7 @@
 Defaults to a local SQLite database when DATABASE_URL is not configured, so
 the system runs out-of-the-box; set DATABASE_URL to a PostgreSQL DSN in prod.
 """
+
 from __future__ import annotations
 
 from contextlib import contextmanager

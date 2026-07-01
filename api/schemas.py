@@ -1,4 +1,5 @@
 """Pydantic request/response schemas for the REST API."""
+
 from __future__ import annotations
 
 import re
@@ -16,6 +17,11 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: str
+    refresh_token: Optional[str] = None
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class BorrowerIn(BaseModel):
@@ -73,7 +79,6 @@ class AnalyzeRequest(BaseModel):
     industry_ebitda_margin: float = 0.12
     promoter_score: float = 70.0
     regulatory_risk: float = 0.2
-
 
 
 class QualitativeNoteIn(BaseModel):

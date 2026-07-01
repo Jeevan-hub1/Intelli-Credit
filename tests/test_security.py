@@ -1,4 +1,5 @@
 """Unit tests for security services (Requirement 19, 23)."""
+
 import pytest
 
 from models.base import UserRole

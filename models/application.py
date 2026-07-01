@@ -1,4 +1,5 @@
 """Application and document domain models."""
+
 from __future__ import annotations
 
 import uuid
@@ -51,7 +52,6 @@ class Document(IntelliBaseModel):
     flags: list[Flag] = Field(default_factory=list)
     error_code: Optional[str] = None
     error_message: Optional[str] = None
-
 
 
 class CollateralItem(IntelliBaseModel):

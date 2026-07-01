@@ -1,4 +1,5 @@
 """Tests for temporal decay utilities (Requirement 14.4, 10.4, 28.3)."""
+
 from datetime import datetime, timedelta, timezone
 
 from utils.temporal import (

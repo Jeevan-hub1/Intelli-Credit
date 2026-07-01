@@ -5,6 +5,7 @@ layer) as structured dicts, normalizes them into the standard schema, applies
 per-line-item confidence flags, detects the reporting standard, and validates
 the accounting identity Assets = Liabilities + Equity before output.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -22,8 +23,8 @@ from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-LINE_ITEM_CONFIDENCE_THRESHOLD = 0.90   # Requirement 2.4
-BALANCE_TOLERANCE = 0.01                # Requirement 2.6 / 24.1
+LINE_ITEM_CONFIDENCE_THRESHOLD = 0.90  # Requirement 2.4
+BALANCE_TOLERANCE = 0.01  # Requirement 2.6 / 24.1
 
 
 def detect_standard(raw: dict[str, Any]) -> AccountingStandard:
@@ -45,7 +46,6 @@ def _num(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
-
 
 
 def _line_items(raw: dict[str, Any], source: str) -> list[LineItem]:
@@ -128,7 +128,6 @@ def parse_year(raw: dict[str, Any]) -> FinancialStatement:
     )
     _validate(stmt)
     return stmt
-
 
 
 def _validate(stmt: FinancialStatement) -> None:

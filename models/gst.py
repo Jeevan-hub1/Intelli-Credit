@@ -1,4 +1,5 @@
 """GST return domain models (Requirements 3, 6)."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -34,7 +35,6 @@ class GSTReturn(IntelliBaseModel):
     total_itc: float = Field(default=0.0, description="Input tax credit")
     total_tax_liability: float = 0.0
     entries: list[GSTLineEntry] = Field(default_factory=list)
-
 
 
 class ITCReconciliation(IntelliBaseModel):

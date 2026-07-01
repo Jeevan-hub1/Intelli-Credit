@@ -3,6 +3,7 @@
 These cover metadata, users/RBAC, audit logs (7-year retention, Req 19.5),
 model versioning (Req 25), and qualitative notes (Req 26).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -45,7 +46,6 @@ class DBUser(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
-
 class DBApplication(Base):
     """Application metadata (full domain payload stored as JSON)."""
 
@@ -60,6 +60,7 @@ class DBApplication(Base):
     assigned_officer_id: Mapped[str] = mapped_column(String(64), default="")
     model_version: Mapped[str] = mapped_column(String(32), default="")
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    analysis_input: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
@@ -100,7 +101,6 @@ class DBCreditScore(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
-
 class DBCAM(Base):
     """Persisted CAM versions (Requirement 30: full version history)."""
 
@@ -125,13 +125,16 @@ class DBAuditLog(Base):
 
     __tablename__ = "audit_logs"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(64), unique=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     action: Mapped[str] = mapped_column(String(128), default="", index=True)
     resource_type: Mapped[str] = mapped_column(String(64), default="")
     resource_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     success: Mapped[bool] = mapped_column(Boolean, default=True)
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    prev_hash: Mapped[str] = mapped_column(String(64), default="")
+    entry_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
     retain_until: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
 
@@ -166,7 +169,6 @@ class DBQualitativeNote(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
-
 class DBOverride(Base):
     """Manual score override audit (Requirement 21.4)."""
 
@@ -196,4 +198,15 @@ class DBEWSAlert(Base):
     escalated: Mapped[bool] = mapped_column(Boolean, default=False)
     assigned_officer_id: Mapped[str] = mapped_column(String(64), default="")
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class DBIdempotencyKey(Base):
+    """Idempotency keys for safe POST retries (Requirement 23 hardening)."""
+
+    __tablename__ = "idempotency_keys"
+
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), default="", index=True)
+    resource_id: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

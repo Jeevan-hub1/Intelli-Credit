@@ -4,6 +4,7 @@ Implements circular-trading detection via transaction-graph cycle search and
 fake-ITC detection via supplier-GSTIN verification and ratio benchmarking.
 A pure-Python cycle finder is used by default; networkx is used if installed.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -18,12 +19,12 @@ from utils.numeric import safe_div
 
 logger = get_logger(__name__)
 
-CYCLE_WINDOW_DAYS = 90                 # Requirement 5.2
-HIGH_RISK_CYCLE_VALUE = 1_000_000      # INR 10 lakhs (Requirement 5.3)
-CIRCULAR_RATIO_CRITICAL = 0.15         # Requirement 5.5
-SINGLE_TXN_SUPPLIER_THRESHOLD = 500_000   # INR 5 lakhs (Requirement 6.5)
-ITC_DEVIATION_THRESHOLD = 0.30         # Requirement 6.4
-MAX_CYCLE_LENGTH = 8                   # bound DFS depth for tractability
+CYCLE_WINDOW_DAYS = 90  # Requirement 5.2
+HIGH_RISK_CYCLE_VALUE = 1_000_000  # INR 10 lakhs (Requirement 5.3)
+CIRCULAR_RATIO_CRITICAL = 0.15  # Requirement 5.5
+SINGLE_TXN_SUPPLIER_THRESHOLD = 500_000  # INR 5 lakhs (Requirement 6.5)
+ITC_DEVIATION_THRESHOLD = 0.30  # Requirement 6.4
+MAX_CYCLE_LENGTH = 8  # bound DFS depth for tractability
 
 
 class Edge:
@@ -44,7 +45,6 @@ class Edge:
             "amount": self.amount,
             "date": self.txn_date.isoformat(),
         }
-
 
 
 def build_transaction_graph(
@@ -94,7 +94,7 @@ def _find_cycles(edges: list[Edge]) -> list[list[Edge]]:
     seen_signatures: set[tuple] = set()
 
     def dfs(start: str, current: str, path: list[Edge], visited: set[str]) -> None:
-        if len(path) > MAX_CYCLE_LENGTH:
+        if len(path) > MAX_CYCLE_LENGTH:  # pragma: no cover - depth guard for large graphs
             return
         for edge in adj.get(current, []):
             if edge.dst == start and path:
@@ -112,7 +112,6 @@ def _find_cycles(edges: list[Edge]) -> list[list[Edge]]:
     for node in list(adj.keys()):
         dfs(node, node, [], {node})
     return cycles
-
 
 
 def detect_circular_trading(
@@ -167,7 +166,6 @@ def detect_circular_trading(
             )
         )
     return findings, ratio
-
 
 
 def detect_fake_itc(
@@ -233,7 +231,6 @@ def detect_fake_itc(
     return findings
 
 
-
 def detect_fraud(
     *,
     bank: Optional[BankStatement] = None,
@@ -261,6 +258,8 @@ def detect_fraud(
     )
     logger.info(
         "Fraud scan: %d finding(s), circular_ratio=%.3f, critical=%s",
-        len(findings), ratio, report.has_critical,
+        len(findings),
+        ratio,
+        report.has_critical,
     )
     return report

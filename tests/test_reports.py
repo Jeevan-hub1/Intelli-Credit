@@ -1,4 +1,5 @@
 """Unit tests for regulatory reporting (Requirement 22)."""
+
 from config.storage import storage
 from services.reports import (
     PortfolioLoan,
@@ -19,7 +20,9 @@ def test_npa_classification_bands():
 
 def _loans():
     return [
-        PortfolioLoan("b1", "Acme", "manufacturing", 8_000_000, days_past_due=120, overall_score=55),
+        PortfolioLoan(
+            "b1", "Acme", "manufacturing", 8_000_000, days_past_due=120, overall_score=55
+        ),
         PortfolioLoan("b2", "Beta", "retail", 2_000_000, days_past_due=0, overall_score=78),
     ]
 

@@ -3,6 +3,7 @@
 Emits single-line JSON records so logs are ingestible by observability
 platforms (CloudWatch, ELK, Databricks audit tables).
 """
+
 from __future__ import annotations
 
 import json

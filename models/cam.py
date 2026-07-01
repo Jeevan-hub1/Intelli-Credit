@@ -1,4 +1,5 @@
 """Credit Appraisal Memo (CAM) domain models (Requirements 15, 16, 29, 30)."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -27,7 +28,9 @@ class GraphVisualization(IntelliBaseModel):
     edges: list[dict] = Field(default_factory=list, description="{from, to, amount, date}")
     cycle_path: list[str] = Field(default_factory=list)
     cycle_summary: dict = Field(default_factory=dict)
-    image_key: Optional[str] = Field(default=None, description="Storage key of rendered image >=300 DPI")
+    image_key: Optional[str] = Field(
+        default=None, description="Storage key of rendered image >=300 DPI"
+    )
     legend: dict = Field(default_factory=dict)
 
 
@@ -37,7 +40,6 @@ class CAMVersionDelta(IntelliBaseModel):
     field: str
     old_value: Optional[str] = None
     new_value: Optional[str] = None
-
 
 
 class CAM(IntelliBaseModel):

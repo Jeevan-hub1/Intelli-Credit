@@ -4,12 +4,13 @@ Implements exponential weighting w(t) = e^(-lambda * age_days) with the
 data-type specific decay constants defined in the requirements, plus helpers
 for recency classification (Requirement 28.3) and weighted aggregation.
 """
+
 from __future__ import annotations
 
 import math
 from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Iterable, Sequence
+from typing import Sequence
 
 
 class DataType(str, Enum):
