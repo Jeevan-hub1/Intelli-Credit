@@ -1,4 +1,5 @@
 """Financial ratio calculations used by the scoring module."""
+
 from __future__ import annotations
 
 from models.financial import FinancialStatement

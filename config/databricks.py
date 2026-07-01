@@ -4,6 +4,7 @@ Centralises connection details and exposes a `databricks_config` object.
 When Databricks is disabled (default), the feature store service uses a
 local Delta-emulating parquet/JSON store so the pipeline still functions.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,12 +1,14 @@
 """Application settings loaded from environment / .env file."""
+
 from __future__ import annotations
 
 from functools import lru_cache
 from typing import Optional
 
 try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
     from pydantic import Field
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+
     _HAS_PYDANTIC_SETTINGS = True
 except Exception:  # pragma: no cover - fallback when dependency missing
     _HAS_PYDANTIC_SETTINGS = False
@@ -43,7 +45,6 @@ if _HAS_PYDANTIC_SETTINGS:
         minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
         minio_bucket: str = Field(default="intelli-credit", alias="MINIO_BUCKET")
         minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
-
 
         # Databricks / Delta Lake
         databricks_enabled: bool = Field(default=False, alias="DATABRICKS_ENABLED")

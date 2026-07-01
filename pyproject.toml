@@ -14,11 +14,22 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["."]
+branch = false
+concurrency = ["thread"]
 omit = ["tests/*", "setup.py", "main.py"]
 
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
+fail_under = 100
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "def run\\(\\)",
+    "\\.\\.\\.",
+]
 
 [tool.black]
 line-length = 100

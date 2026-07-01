@@ -1,4 +1,5 @@
 """Early Warning System monitoring and alert prioritization (Req 17, 18)."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -20,7 +21,7 @@ _SEVERITY_WEIGHT = {
     Severity.INFO: 1.0,
 }
 _SEVERITY_ORDER = [Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
-ESCALATION_WINDOW_DAYS = 30   # Requirement 18.2
+ESCALATION_WINDOW_DAYS = 30  # Requirement 18.2
 
 
 def compute_ews_score(triggers: list[TriggerEvent]) -> float:
@@ -46,7 +47,6 @@ def _escalate(severity: Severity) -> Severity:
     return _SEVERITY_ORDER[min(idx + 1, len(_SEVERITY_ORDER) - 1)]
 
 
-
 def evaluate_alert(
     borrower_id: str,
     triggers: list[TriggerEvent],
@@ -64,7 +64,9 @@ def evaluate_alert(
     severity = _base_severity(score)
 
     now = utcnow()
-    recent = [t for t in triggers if (now - t.occurred_at) <= timedelta(days=ESCALATION_WINDOW_DAYS)]
+    recent = [
+        t for t in triggers if (now - t.occurred_at) <= timedelta(days=ESCALATION_WINDOW_DAYS)
+    ]
     escalated = False
     if len(recent) > 1:
         severity = _escalate(severity)
@@ -82,8 +84,13 @@ def evaluate_alert(
     )
     if severity == Severity.CRITICAL:
         _notify_officer(alert)
-    logger.info("EWS alert borrower=%s score=%.1f severity=%s escalated=%s",
-                borrower_id, score, severity.value, escalated)
+    logger.info(
+        "EWS alert borrower=%s score=%.1f severity=%s escalated=%s",
+        borrower_id,
+        score,
+        severity.value,
+        escalated,
+    )
     return alert
 
 
@@ -94,10 +101,11 @@ def _notify_officer(alert: EWSAlert) -> None:
     """
     logger.warning(
         "CRITICAL EWS alert for borrower %s (score %.1f) -> officer %s",
-        alert.borrower_id, alert.ews_score, alert.assigned_officer_id or "unassigned",
+        alert.borrower_id,
+        alert.ews_score,
+        alert.assigned_officer_id or "unassigned",
         extra={"context": {"notification": "critical_ews", "borrower_id": alert.borrower_id}},
     )
-
 
 
 def daily_digest(alerts: list[EWSAlert], *, top_n: int = 10) -> list[EWSDigestEntry]:
@@ -105,13 +113,15 @@ def daily_digest(alerts: list[EWSAlert], *, top_n: int = 10) -> list[EWSDigestEn
     ranked = sorted(alerts, key=lambda a: (a.ews_score, a.exposure_amount), reverse=True)
     digest: list[EWSDigestEntry] = []
     for rank, alert in enumerate(ranked[:top_n], start=1):
-        digest.append(EWSDigestEntry(
-            borrower_id=alert.borrower_id,
-            ews_score=alert.ews_score,
-            exposure_amount=alert.exposure_amount,
-            severity=alert.severity,
-            rank=rank,
-        ))
+        digest.append(
+            EWSDigestEntry(
+                borrower_id=alert.borrower_id,
+                ews_score=alert.ews_score,
+                exposure_amount=alert.exposure_amount,
+                severity=alert.severity,
+                rank=rank,
+            )
+        )
     return digest
 
 
@@ -126,24 +136,37 @@ def detect_triggers(
     triggers: list[TriggerEvent] = []
     if days_financials_overdue > 0:
         sev = Severity.HIGH if days_financials_overdue > 60 else Severity.MEDIUM
-        triggers.append(TriggerEvent(
-            kind="delayed_financials",
-            description=f"Financial statements overdue by {days_financials_overdue} days.",
-            severity=sev))
+        triggers.append(
+            TriggerEvent(
+                kind="delayed_financials",
+                description=f"Financial statements overdue by {days_financials_overdue} days.",
+                severity=sev,
+            )
+        )
     if gst_filing_gaps > 0:
-        triggers.append(TriggerEvent(
-            kind="gst_irregular",
-            description=f"{gst_filing_gaps} GST filing gap(s) detected.",
-            severity=Severity.MEDIUM, weight=float(gst_filing_gaps)))
+        triggers.append(
+            TriggerEvent(
+                kind="gst_irregular",
+                description=f"{gst_filing_gaps} GST filing gap(s) detected.",
+                severity=Severity.MEDIUM,
+                weight=float(gst_filing_gaps),
+            )
+        )
     if adverse_news_count > 0:
         sev = Severity.HIGH if adverse_news_count >= 3 else Severity.MEDIUM
-        triggers.append(TriggerEvent(
-            kind="adverse_news",
-            description=f"{adverse_news_count} adverse news mention(s).",
-            severity=sev))
+        triggers.append(
+            TriggerEvent(
+                kind="adverse_news",
+                description=f"{adverse_news_count} adverse news mention(s).",
+                severity=sev,
+            )
+        )
     if rating_downgraded:
-        triggers.append(TriggerEvent(
-            kind="rating_downgrade",
-            description="Credit rating downgrade reported by rating agency.",
-            severity=Severity.HIGH))
+        triggers.append(
+            TriggerEvent(
+                kind="rating_downgrade",
+                description="Credit rating downgrade reported by rating agency.",
+                severity=Severity.HIGH,
+            )
+        )
     return triggers

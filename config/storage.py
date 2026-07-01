@@ -4,9 +4,9 @@ Provides a uniform interface; defaults to an encrypted-at-rest local
 filesystem backend so the system works without external object storage.
 Encryption is handled by services.security before bytes reach storage.
 """
+
 from __future__ import annotations
 
-import os
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -20,7 +20,13 @@ logger = get_logger(__name__)
 class StorageBackend:
     """Interface for object storage backends."""
 
-    def put(self, data: bytes, *, key: Optional[str] = None, content_type: str = "application/octet-stream") -> str:
+    def put(
+        self,
+        data: bytes,
+        *,
+        key: Optional[str] = None,
+        content_type: str = "application/octet-stream",
+    ) -> str:
         raise NotImplementedError
 
     def get(self, key: str) -> bytes:
@@ -43,7 +49,13 @@ class LocalStorage(StorageBackend):
     def _path(self, key: str) -> Path:
         return self.root / key
 
-    def put(self, data: bytes, *, key: Optional[str] = None, content_type: str = "application/octet-stream") -> str:
+    def put(
+        self,
+        data: bytes,
+        *,
+        key: Optional[str] = None,
+        content_type: str = "application/octet-stream",
+    ) -> str:
         key = key or f"{uuid.uuid4().hex}.bin"
         path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,8 +75,7 @@ class LocalStorage(StorageBackend):
         return self._path(key).exists()
 
 
-
-class MinioStorage(StorageBackend):
+class MinioStorage(StorageBackend):  # pragma: no cover - requires optional minio dep + server
     """MinIO/S3 backend. Activated when the `minio` package is installed."""
 
     def __init__(self) -> None:
@@ -80,11 +91,19 @@ class MinioStorage(StorageBackend):
         if not self._client.bucket_exists(self._bucket):
             self._client.make_bucket(self._bucket)
 
-    def put(self, data: bytes, *, key: Optional[str] = None, content_type: str = "application/octet-stream") -> str:
+    def put(
+        self,
+        data: bytes,
+        *,
+        key: Optional[str] = None,
+        content_type: str = "application/octet-stream",
+    ) -> str:
         import io
 
         key = key or f"{uuid.uuid4().hex}.bin"
-        self._client.put_object(self._bucket, key, io.BytesIO(data), length=len(data), content_type=content_type)
+        self._client.put_object(
+            self._bucket, key, io.BytesIO(data), length=len(data), content_type=content_type
+        )
         return key
 
     def get(self, key: str) -> bytes:
@@ -109,7 +128,7 @@ class MinioStorage(StorageBackend):
 def get_storage() -> StorageBackend:
     """Return the configured storage backend, falling back to local."""
     backend = (settings.storage_backend or "local").lower()
-    if backend in ("minio", "s3"):
+    if backend in ("minio", "s3"):  # pragma: no cover - optional infra path
         try:
             return MinioStorage()
         except Exception as exc:  # pragma: no cover - depends on optional dep/infra

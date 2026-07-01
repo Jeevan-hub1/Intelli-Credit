@@ -1,4 +1,5 @@
 """Unit tests for the Delta feature store (Requirement 27)."""
+
 import uuid
 
 from services.feature_store import FeatureStore
@@ -11,8 +12,12 @@ def _store(tmp_path):
 def test_write_and_read_latest(tmp_path):
     fs = _store(tmp_path)
     app_id = f"app_{uuid.uuid4().hex[:8]}"
-    v1 = fs.write_features(application_id=app_id, features={"overall_score": 70.0},
-                           application_date="2026-06-01", borrower_industry="manufacturing")
+    v1 = fs.write_features(
+        application_id=app_id,
+        features={"overall_score": 70.0},
+        application_date="2026-06-01",
+        borrower_industry="manufacturing",
+    )
     assert v1 == 1
     latest = fs.read_features(app_id)
     assert latest["features"]["overall_score"] == 70.0
@@ -22,10 +27,18 @@ def test_write_and_read_latest(tmp_path):
 def test_versioning_and_time_travel(tmp_path):
     fs = _store(tmp_path)
     app_id = f"app_{uuid.uuid4().hex[:8]}"
-    fs.write_features(application_id=app_id, features={"overall_score": 70.0},
-                      application_date="2026-06-01", borrower_industry="mfg")
-    v2 = fs.write_features(application_id=app_id, features={"overall_score": 75.0},
-                           application_date="2026-06-01", borrower_industry="mfg")
+    fs.write_features(
+        application_id=app_id,
+        features={"overall_score": 70.0},
+        application_date="2026-06-01",
+        borrower_industry="mfg",
+    )
+    v2 = fs.write_features(
+        application_id=app_id,
+        features={"overall_score": 75.0},
+        application_date="2026-06-01",
+        borrower_industry="mfg",
+    )
     assert v2 == 2
     # Time-travel to v1 returns the original value.
     assert fs.read_features(app_id, version=1)["features"]["overall_score"] == 70.0
@@ -39,8 +52,13 @@ def test_versioning_and_time_travel(tmp_path):
 def test_partitioning_and_lineage(tmp_path):
     fs = _store(tmp_path)
     app_id = f"app_{uuid.uuid4().hex[:8]}"
-    fs.write_features(application_id=app_id, features={"x": 1}, application_date="2026-06-01",
-                      borrower_industry="retail", source="unit_test")
+    fs.write_features(
+        application_id=app_id,
+        features={"x": 1},
+        application_date="2026-06-01",
+        borrower_industry="retail",
+        source="unit_test",
+    )
     rec = fs.read_features(app_id)
     assert rec["lineage"]["source"] == "unit_test"
     assert "application_date=2026-06-01" in rec["lineage"]["partition"]

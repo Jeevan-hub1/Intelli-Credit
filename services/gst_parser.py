@@ -1,4 +1,5 @@
 """GST return parsing and reconciliation service (Requirement 3)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -16,7 +17,7 @@ from utils.numeric import pct_change, safe_div
 
 logger = get_logger(__name__)
 
-ITC_MISMATCH_THRESHOLD_PCT = 5.0   # Requirement 3.3
+ITC_MISMATCH_THRESHOLD_PCT = 5.0  # Requirement 3.3
 
 
 def _num(value: Any) -> float:
@@ -49,7 +50,6 @@ def parse_return(raw: dict[str, Any]) -> GSTReturn:
         total_tax_liability=_num(raw.get("total_tax_liability")),
         entries=entries,
     )
-
 
 
 def _reconcile_itc(returns: list[GSTReturn]) -> list[ITCReconciliation]:
@@ -101,7 +101,6 @@ def _revenue_trend(returns: list[GSTReturn]) -> list[RevenueTrendPoint]:
         )
         prev = rev
     return points
-
 
 
 def parse_gst(raw_returns: list[dict[str, Any]], *, gstin: str = "") -> GSTData:

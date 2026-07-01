@@ -1,4 +1,5 @@
 """Early Warning System domain models (Requirements 17, 18)."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -12,7 +13,9 @@ from models.base import IntelliBaseModel, Severity, utcnow
 class TriggerEvent(IntelliBaseModel):
     """A monitored EWS trigger event (Requirement 17.1)."""
 
-    kind: str = Field(..., description="delayed_financials | gst_irregular | adverse_news | rating_downgrade")
+    kind: str = Field(
+        ..., description="delayed_financials | gst_irregular | adverse_news | rating_downgrade"
+    )
     description: str
     severity: Severity = Severity.MEDIUM
     occurred_at: datetime = Field(default_factory=utcnow)

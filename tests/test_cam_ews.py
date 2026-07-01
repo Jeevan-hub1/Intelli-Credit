@@ -1,4 +1,5 @@
 """Tests for CAM generation and EWS (Requirements 15, 17, 18, 29, 30)."""
+
 from models.application import Application, Borrower, LoanRequest
 from models.base import Severity
 from models.scoring import (
@@ -15,15 +16,22 @@ from services.scoring import ScoringContext, synthesize
 
 
 def _app():
-    return Application(borrower=Borrower(name="Acme Ltd", cin="U1", industry="mfg"),
-                      loan_request=LoanRequest(amount=3000, tenure_months=24))
+    return Application(
+        borrower=Borrower(name="Acme Ltd", cin="U1", industry="mfg"),
+        loan_request=LoanRequest(amount=3000, tenure_months=24),
+    )
 
 
 def test_generate_cam_sections_and_versions(sample_financials):
     fa = parse_financials(sample_financials)
-    ctx = ScoringContext(loan_request=_app().loan_request, financials=fa,
-                         compliance=ComplianceCheck(), litigation=LitigationReport(),
-                         fraud=FraudReport(), model_version="1.0.0")
+    ctx = ScoringContext(
+        loan_request=_app().loan_request,
+        financials=fa,
+        compliance=ComplianceCheck(),
+        litigation=LitigationReport(),
+        fraud=FraudReport(),
+        model_version="1.0.0",
+    )
     score = synthesize(ctx)
     app = _app()
     inp = CAMInputs(application=app, credit_score=score, financials=fa)
@@ -37,22 +45,45 @@ def test_generate_cam_sections_and_versions(sample_financials):
 
 def test_cam_includes_graph_for_circular_trading(sample_financials):
     fa = parse_financials(sample_financials)
-    fraud = FraudReport(findings=[FraudFinding(kind="circular_trading", severity=Severity.HIGH,
-        description="cycle", cycles=[TransactionCycle(entity_chain=["A", "B", "A"],
-        total_value=2_000_000, span_days=30,
-        edges=[{"from": "A", "to": "B", "amount": 1_000_000, "date": "2024-01-01"},
-               {"from": "B", "to": "A", "amount": 1_000_000, "date": "2024-01-15"}])])])
-    ctx = ScoringContext(loan_request=_app().loan_request, financials=fa, fraud=fraud,
-                         compliance=ComplianceCheck(), litigation=LitigationReport())
+    fraud = FraudReport(
+        findings=[
+            FraudFinding(
+                kind="circular_trading",
+                severity=Severity.HIGH,
+                description="cycle",
+                cycles=[
+                    TransactionCycle(
+                        entity_chain=["A", "B", "A"],
+                        total_value=2_000_000,
+                        span_days=30,
+                        edges=[
+                            {"from": "A", "to": "B", "amount": 1_000_000, "date": "2024-01-01"},
+                            {"from": "B", "to": "A", "amount": 1_000_000, "date": "2024-01-15"},
+                        ],
+                    )
+                ],
+            )
+        ]
+    )
+    ctx = ScoringContext(
+        loan_request=_app().loan_request,
+        financials=fa,
+        fraud=fraud,
+        compliance=ComplianceCheck(),
+        litigation=LitigationReport(),
+    )
     score = synthesize(ctx)
-    cam = generate_cam(CAMInputs(application=_app(), credit_score=score, financials=fa, fraud=fraud))
+    cam = generate_cam(
+        CAMInputs(application=_app(), credit_score=score, financials=fa, fraud=fraud)
+    )
     assert cam.graph_visualization is not None
     assert cam.graph_visualization.cycle_path == ["A", "B", "A"]
 
 
 def test_ews_score_and_escalation():
-    triggers = detect_triggers(days_financials_overdue=70, gst_filing_gaps=2,
-                               adverse_news_count=3, rating_downgraded=True)
+    triggers = detect_triggers(
+        days_financials_overdue=70, gst_filing_gaps=2, adverse_news_count=3, rating_downgraded=True
+    )
     assert compute_ews_score(triggers) > 0
     alert = evaluate_alert("b1", triggers, exposure_amount=5_000_000)
     assert alert.escalated  # multiple triggers within window

@@ -1,4 +1,5 @@
 """End-to-end API tests (Requirements 21-23, 26, 30)."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -19,16 +20,30 @@ def auth(client):
 
 
 def _create_and_analyze(client, auth, sample_financials):
-    body = {"borrower": {"name": "Acme Ltd", "cin": "U1", "gstin": "27AAPFU0939F1ZV",
-                         "industry": "manufacturing"},
-            "loan_request": {"amount": 3000, "tenure_months": 36,
-                             "collateral": [{"description": "P", "collateral_type": "property",
-                                             "market_value": 6000}]}}
+    body = {
+        "borrower": {
+            "name": "Acme Ltd",
+            "cin": "U1",
+            "gstin": "27AAPFU0939F1ZV",
+            "industry": "manufacturing",
+        },
+        "loan_request": {
+            "amount": 3000,
+            "tenure_months": 36,
+            "collateral": [
+                {"description": "P", "collateral_type": "property", "market_value": 6000}
+            ],
+        },
+    }
     app_id = client.post("/applications", json=body, headers=auth).json()["application_id"]
-    client.post(f"/applications/{app_id}/analyze",
-                json={"raw_financials": sample_financials,
-                      "mca21_filings": [{"type": "AR", "due_date": "2025-01-01", "filed": True}]},
-                headers=auth)
+    client.post(
+        f"/applications/{app_id}/analyze",
+        json={
+            "raw_financials": sample_financials,
+            "mca21_filings": [{"type": "AR", "due_date": "2025-01-01", "filed": True}],
+        },
+        headers=auth,
+    )
     return app_id
 
 
@@ -53,15 +68,24 @@ def test_full_workflow(client, auth, sample_financials):
     assert 0 <= res.json()["overall_score"] <= 100
 
     # qualitative note
-    r = client.post(f"/applications/{app_id}/notes",
-                    json={"text": "site visit", "dimension": "Capacity",
-                          "sentiment": "Adverse", "severity": "High"}, headers=auth)
+    r = client.post(
+        f"/applications/{app_id}/notes",
+        json={
+            "text": "site visit",
+            "dimension": "Capacity",
+            "sentiment": "Adverse",
+            "severity": "High",
+        },
+        headers=auth,
+    )
     assert r.status_code == 200 and r.json()["score_impact"] < 0
 
     # override -> new CAM version
-    r = client.post(f"/applications/{app_id}/override",
-                    json={"dimension": "Collateral", "new_score": 90, "reason": "more collateral"},
-                    headers=auth)
+    r = client.post(
+        f"/applications/{app_id}/override",
+        json={"dimension": "Collateral", "new_score": 90, "reason": "more collateral"},
+        headers=auth,
+    )
     assert r.status_code == 200 and r.json()["cam_version"] == 2
 
     versions = client.get(f"/applications/{app_id}/cam/versions", headers=auth).json()

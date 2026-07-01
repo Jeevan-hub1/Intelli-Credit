@@ -1,4 +1,5 @@
 """Durability (DB read fallback) and input-validation API tests."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -19,12 +20,19 @@ def auth(client):
 
 
 def _analyzed_app(client, auth, sample_financials):
-    body = {"borrower": {"name": "Durable Co", "cin": "U1", "gstin": "27AAPFU0939F1ZV",
-                         "industry": "manufacturing"},
-            "loan_request": {"amount": 3000, "tenure_months": 36}}
+    body = {
+        "borrower": {
+            "name": "Durable Co",
+            "cin": "U1",
+            "gstin": "27AAPFU0939F1ZV",
+            "industry": "manufacturing",
+        },
+        "loan_request": {"amount": 3000, "tenure_months": 36},
+    }
     app_id = client.post("/applications", json=body, headers=auth).json()["application_id"]
-    client.post(f"/applications/{app_id}/analyze",
-                json={"raw_financials": sample_financials}, headers=auth)
+    client.post(
+        f"/applications/{app_id}/analyze", json={"raw_financials": sample_financials}, headers=auth
+    )
     return app_id
 
 
@@ -47,30 +55,47 @@ def test_reads_survive_registry_wipe(client, auth, sample_financials):
 
 
 def test_invalid_gstin_rejected(client, auth):
-    body = {"borrower": {"name": "Bad", "gstin": "NOTAGSTIN"},
-            "loan_request": {"amount": 1000, "tenure_months": 12}}
+    body = {
+        "borrower": {"name": "Bad", "gstin": "NOTAGSTIN"},
+        "loan_request": {"amount": 1000, "tenure_months": 12},
+    }
     r = client.post("/applications", json=body, headers=auth)
     assert r.status_code == 400 and r.json()["code"] == "MALFORMED_REQUEST"
 
 
 def test_invalid_pan_rejected(client, auth):
-    body = {"borrower": {"name": "Bad", "pan": "abc"},
-            "loan_request": {"amount": 1000, "tenure_months": 12}}
+    body = {
+        "borrower": {"name": "Bad", "pan": "abc"},
+        "loan_request": {"amount": 1000, "tenure_months": 12},
+    }
     r = client.post("/applications", json=body, headers=auth)
     assert r.status_code == 400
 
 
 def test_valid_identifiers_accepted(client, auth):
-    body = {"borrower": {"name": "Good", "gstin": "27AAPFU0939F1ZV", "pan": "ABCDE1234F"},
-            "loan_request": {"amount": 1000, "tenure_months": 12}}
+    body = {
+        "borrower": {"name": "Good", "gstin": "27AAPFU0939F1ZV", "pan": "ABCDE1234F"},
+        "loan_request": {"amount": 1000, "tenure_months": 12},
+    }
     r = client.post("/applications", json=body, headers=auth)
     assert r.status_code == 201
 
 
 def test_reports_endpoint(client, auth):
-    body = {"period": "2026-06", "capital_base": 50_000_000,
-            "loans": [{"borrower_id": "b1", "borrower_name": "Acme", "industry": "mfg",
-                       "exposure": 8_000_000, "days_past_due": 120, "overall_score": 55}]}
+    body = {
+        "period": "2026-06",
+        "capital_base": 50_000_000,
+        "loans": [
+            {
+                "borrower_id": "b1",
+                "borrower_name": "Acme",
+                "industry": "mfg",
+                "exposure": 8_000_000,
+                "days_past_due": 120,
+                "overall_score": 55,
+            }
+        ],
+    }
     r = client.post("/reports/portfolio", json=body, headers=auth)
     assert r.status_code == 200
     assert r.json()["npa_breakdown"]["Substandard"] == 8_000_000

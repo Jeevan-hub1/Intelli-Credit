@@ -4,18 +4,18 @@ Live HTTP calls are made only when an API key is configured and httpx is
 available. Otherwise the clients fall back to deterministic offline analysis
 derived from the structured inputs, so the pipeline runs end-to-end.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, Optional
 
-from config.settings import settings
 from models.scoring import ComplianceCheck, LitigationCase, LitigationReport
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-OVERDUE_DAYS_THRESHOLD = 30   # Requirement 7.3
+OVERDUE_DAYS_THRESHOLD = 30  # Requirement 7.3
 _HIGH_RISK_CRIMINAL_KEYWORDS = ("fraud", "cheating", "forgery", "misappropriation", "embezzle")
 
 
@@ -36,7 +36,6 @@ def validate_gstin(gstin: str) -> bool:
     if not (pan[:5].isalpha() and pan[5:9].isdigit() and pan[9].isalpha()):
         return False
     return gstin[12:].isalnum()
-
 
 
 def _days_overdue(due: Any) -> int:
@@ -82,9 +81,13 @@ def check_mca21_compliance(
             result.violations.append(f"Disqualified director: {name}")
 
     result.is_compliant = not result.violations
-    logger.info("MCA21 check cin=%s compliant=%s violations=%d", cin, result.is_compliant, len(result.violations))
+    logger.info(
+        "MCA21 check cin=%s compliant=%s violations=%d",
+        cin,
+        result.is_compliant,
+        len(result.violations),
+    )
     return result
-
 
 
 def search_ecourts(
@@ -126,6 +129,9 @@ def search_ecourts(
     report.total_value = round(report.total_value, 2)
     logger.info(
         "eCourts search '%s': %d case(s), high_risk=%d, ibc=%d",
-        company_name, len(report.cases), report.high_risk_count, report.ibc_count,
+        company_name,
+        len(report.cases),
+        report.high_risk_count,
+        report.ibc_count,
     )
     return report

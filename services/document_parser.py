@@ -4,6 +4,7 @@ Real OCR/PDF text extraction is pluggable; this service focuses on the
 required behaviours: format validation, type classification with a
 confidence threshold, manual-review flagging, and structured error codes.
 """
+
 from __future__ import annotations
 
 import time
@@ -16,8 +17,8 @@ from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-CLASSIFICATION_THRESHOLD = 0.85          # Requirement 1.3
-MAX_SYNC_SIZE_BYTES = 10 * 1024 * 1024   # Requirement 1.4 (<10MB)
+CLASSIFICATION_THRESHOLD = 0.85  # Requirement 1.3
+MAX_SYNC_SIZE_BYTES = 10 * 1024 * 1024  # Requirement 1.4 (<10MB)
 
 # Format detection by extension and magic bytes.
 _EXTENSION_FORMATS: dict[str, DocumentFormat] = {
@@ -35,9 +36,20 @@ _EXTENSION_FORMATS: dict[str, DocumentFormat] = {
 # Keyword signals used to classify a document into a known type.
 _TYPE_KEYWORDS: dict[DocumentType, tuple[str, ...]] = {
     DocumentType.ANNUAL_REPORT: ("annual report", "directors report", "board's report"),
-    DocumentType.FINANCIAL_STATEMENT: ("balance sheet", "profit and loss", "cash flow", "schedule iii"),
+    DocumentType.FINANCIAL_STATEMENT: (
+        "balance sheet",
+        "profit and loss",
+        "cash flow",
+        "schedule iii",
+    ),
     DocumentType.GST_RETURN: ("gstr", "gstin", "input tax credit", "gst return"),
-    DocumentType.BANK_STATEMENT: ("statement of account", "available balance", "ifsc", "debit", "credit"),
+    DocumentType.BANK_STATEMENT: (
+        "statement of account",
+        "available balance",
+        "ifsc",
+        "debit",
+        "credit",
+    ),
     DocumentType.LEGAL_NOTICE: ("notice", "petitioner", "respondent", "tribunal", "court"),
     DocumentType.RATING_REPORT: ("rating", "crisil", "icra", "care ratings", "outlook"),
 }
@@ -50,7 +62,6 @@ class DocumentError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
-
 
 
 @dataclass
@@ -98,9 +109,10 @@ def classify(text: str, *, hint: Optional[DocumentType] = None) -> Classificatio
     runner_up = sorted(scores.values(), reverse=True)[1] if len(scores) > 1 else 0
     ratio = best_hits / total_keywords
     separation = (best_hits - runner_up) / max(best_hits, 1)
-    confidence = round(min(0.99, 0.5 * ratio + 0.5 * (0.5 + 0.5 * separation) + 0.15 * (best_hits >= 2)), 4)
+    confidence = round(
+        min(0.99, 0.5 * ratio + 0.5 * (0.5 + 0.5 * separation) + 0.15 * (best_hits >= 2)), 4
+    )
     return ClassificationResult(best_type, confidence)
-
 
 
 def ingest_document(
@@ -148,7 +160,7 @@ def ingest_document(
 
     # Requirement 1.4: surface a flag if a small file took too long.
     elapsed = time.monotonic() - started
-    if size <= MAX_SYNC_SIZE_BYTES and elapsed > 30:
+    if size <= MAX_SYNC_SIZE_BYTES and elapsed > 30:  # pragma: no cover - timing-dependent
         doc.flags.append(
             Flag(
                 code="SLOW_PROCESSING",
@@ -159,6 +171,9 @@ def ingest_document(
 
     logger.info(
         "Ingested document %s type=%s confidence=%.2f review=%s",
-        filename, result.doc_type.value, result.confidence, doc.needs_manual_review,
+        filename,
+        result.doc_type.value,
+        result.confidence,
+        doc.needs_manual_review,
     )
     return doc

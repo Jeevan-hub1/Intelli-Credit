@@ -6,6 +6,7 @@ borrower industry. Uses the Databricks SQL connector when configured and live;
 otherwise persists to a local Delta-emulating versioned JSON store so the
 unified pipeline functions in all environments.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,8 +39,6 @@ class FeatureStore:
         p.mkdir(parents=True, exist_ok=True)
         return p
 
-
-
     def write_features(
         self,
         *,
@@ -54,7 +53,7 @@ class FeatureStore:
 
         Returns the new version number. Supports batch and streaming `mode`.
         """
-        if databricks_config.is_live:
+        if databricks_config.is_live:  # pragma: no cover - requires live Databricks
             self._write_live(application_id, features, application_date, borrower_industry)
 
         part = self._partition_dir(application_date, borrower_industry)
@@ -75,11 +74,16 @@ class FeatureStore:
         return version
 
     def _next_version(self, application_id: str) -> int:
-        versions = [r["version"] for r in self._read_txn_log()
-                    if r["action"] == "WRITE" and r["application_id"] == application_id]
+        versions = [
+            r["version"]
+            for r in self._read_txn_log()
+            if r["action"] == "WRITE" and r["application_id"] == application_id
+        ]
         return (max(versions) + 1) if versions else 1
 
-    def read_features(self, application_id: str, *, version: Optional[int] = None) -> Optional[dict]:
+    def read_features(
+        self, application_id: str, *, version: Optional[int] = None
+    ) -> Optional[dict]:
         """Read features; with `version` performs a time-travel query (Req 27.4)."""
         records = self._all_records(application_id)
         if not records:
@@ -95,8 +99,6 @@ class FeatureStore:
         """Return all versions for an application, ascending (time-travel index)."""
         return sorted(self._all_records(application_id), key=lambda r: r["version"])
 
-
-
     def _all_records(self, application_id: str) -> list[dict]:
         records: list[dict] = []
         for path in self.root.rglob(f"{application_id}.jsonl"):
@@ -108,8 +110,13 @@ class FeatureStore:
         return records
 
     def _append_txn_log(self, action: str, application_id: str, version: int, path: str) -> None:
-        entry = {"action": action, "application_id": application_id, "version": version,
-                 "path": path, "ts": _now_iso()}
+        entry = {
+            "action": action,
+            "application_id": application_id,
+            "version": version,
+            "path": path,
+            "ts": _now_iso(),
+        }
         with self._txn_log.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry) + "\n")
 
@@ -124,20 +131,29 @@ class FeatureStore:
                     out.append(json.loads(line))
         return out
 
-    def _write_live(self, application_id, features, application_date, borrower_industry) -> None:
+    def _write_live(
+        self, application_id, features, application_date, borrower_industry
+    ) -> None:  # pragma: no cover - requires live Databricks
         """Write to a live Databricks Delta table (best-effort)."""
-        try:  # pragma: no cover - requires live Databricks
+        try:
             from databricks import sql
 
-            with sql.connect(server_hostname=databricks_config.host,
-                             http_path=databricks_config.http_path,
-                             access_token=databricks_config.token) as conn:
+            with sql.connect(
+                server_hostname=databricks_config.host,
+                http_path=databricks_config.http_path,
+                access_token=databricks_config.token,
+            ) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO credit_features "
                         "(application_id, application_date, borrower_industry, features, ingested_at) "
                         "VALUES (?, ?, ?, ?, current_timestamp())",
-                        (application_id, application_date, borrower_industry, json.dumps(features, default=str)),
+                        (
+                            application_id,
+                            application_date,
+                            borrower_industry,
+                            json.dumps(features, default=str),
+                        ),
                     )
             logger.info("Feature store wrote to live Databricks for %s", application_id)
         except Exception as exc:

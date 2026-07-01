@@ -1,4 +1,5 @@
 """Base models and shared enumerations."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -55,7 +56,6 @@ class AccountingStandard(str, Enum):
     UNKNOWN = "unknown"
 
 
-
 class ApplicationStatus(str, Enum):
     """Lifecycle states of a credit application."""
 
@@ -93,11 +93,11 @@ FIVE_C_WEIGHTS: dict[FiveCDimension, float] = {
 class RiskBand(str, Enum):
     """Overall credit risk bands (Requirement 14.2)."""
 
-    EXCELLENT = "Excellent"   # 80-100
-    GOOD = "Good"             # 65-79
-    FAIR = "Fair"             # 50-64
-    POOR = "Poor"             # 35-49
-    HIGH_RISK = "High Risk"   # 0-34
+    EXCELLENT = "Excellent"  # 80-100
+    GOOD = "Good"  # 65-79
+    FAIR = "Fair"  # 50-64
+    POOR = "Poor"  # 35-49
+    HIGH_RISK = "High Risk"  # 0-34
 
 
 class Severity(str, Enum):
@@ -124,7 +124,6 @@ class Recommendation(str, Enum):
     APPROVE = "Approve"
     APPROVE_WITH_CONDITIONS = "Approve with Conditions"
     REJECT = "Reject"
-
 
 
 def score_to_risk_band(score: float) -> RiskBand:
