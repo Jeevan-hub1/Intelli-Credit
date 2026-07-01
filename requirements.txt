@@ -20,10 +20,19 @@ matplotlib>=3.8.0                # circular-trading graph image >=300 DPI (Requi
 # ---- HTTP client (used by the research agent and the FastAPI TestClient) ----
 httpx>=0.27.0
 
+# ---- Database migrations ----
+alembic>=1.13.0
+
 # ---- Optional / pluggable integrations (graceful fallbacks if absent) ----
-# networkx>=3.2                  # alternative graph backend for fraud detection
+# psycopg2-binary>=2.9.9         # PostgreSQL driver (set DATABASE_URL to a postgres DSN)
+# pypdf>=4.0.0                   # PDF text extraction (document extraction layer)
+# pytesseract>=0.3.10           # OCR for scanned images (requires the tesseract binary)
+# openpyxl>=3.1.0               # native .xlsx extraction
+# celery>=5.3.0                 # distributed async job backend
+# redis>=5.0.0                  # Celery broker / result backend + distributed rate limiting
+# networkx>=3.2                 # alternative graph backend for fraud detection
 # databricks-sql-connector>=3.0 # Delta Lake feature store
-# minio>=7.2.0                   # MinIO/S3 object storage backend
+# minio>=7.2.0                  # MinIO/S3 object storage backend
 
 # ---- Dev / tooling ----
 pytest>=8.0.0

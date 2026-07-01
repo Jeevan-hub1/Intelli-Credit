@@ -29,7 +29,7 @@ from models.application import Application, Borrower, CollateralItem, LoanReques
 from models.base import ApplicationStatus, UserRole, score_to_risk_band
 from models.db_models import DBApplication, DBIdempotencyKey, DBOverride, DBQualitativeNote, DBUser
 from models.scoring import QualitativeNote
-from services import cam_generator, document_parser, security
+from services import cam_generator, document_parser, extraction, security
 from services.audit import record_audit
 from services.credit_engine import AnalysisRequest, analyze
 from services.jobs import job_manager
@@ -221,6 +221,10 @@ async def upload_document(
         )
     except document_parser.DocumentError as exc:
         raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message})
+
+    # Extract a structured record from the raw bytes so it can feed the parsers.
+    extracted = extraction.extract_structured(doc.doc_type, file.filename, data)
+
     record_audit(
         db,
         user_id=user.id,
@@ -235,6 +239,7 @@ async def upload_document(
         "classification_confidence": doc.classification_confidence,
         "needs_manual_review": doc.needs_manual_review,
         "flags": [f.code for f in doc.flags],
+        "extraction": {"kind": extracted["kind"], "source": extracted["source"]},
     }
 
 
