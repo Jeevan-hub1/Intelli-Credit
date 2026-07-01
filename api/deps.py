@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -106,6 +107,47 @@ class InMemoryRateLimitBackend(RateLimitBackend):
 
 
 _backend: RateLimitBackend = InMemoryRateLimitBackend()
+
+
+class RedisRateLimitBackend(RateLimitBackend):
+    """Distributed fixed-window limiter backed by Redis (shared across workers).
+
+    Uses an atomic INCR + EXPIRE per client/window. The client is injected so
+    the algorithm is unit-testable; use `from_url` in production wiring.
+    """
+
+    def __init__(self, client: Any, prefix: str = "ratelimit") -> None:
+        self._client = client
+        self._prefix = prefix
+
+    def hit(self, client: str, limit: int, window: int) -> tuple[bool, int]:
+        key = f"{self._prefix}:{client}"
+        count = int(self._client.incr(key))
+        if count == 1:
+            self._client.expire(key, window)
+        if count > limit:
+            ttl = int(self._client.ttl(key))
+            return False, ttl if ttl > 0 else window
+        return True, 0
+
+    @classmethod
+    def from_url(cls, url: str) -> "RedisRateLimitBackend":  # pragma: no cover - needs redis server
+        import redis
+
+        return cls(redis.from_url(url))
+
+
+def select_rate_limit_backend() -> RateLimitBackend:
+    """Choose a rate-limit backend from configuration (Redis when configured)."""
+    import os
+
+    url = os.getenv("REDIS_URL") or getattr(settings, "redis_url", None)
+    if url:  # pragma: no cover - requires a live redis server
+        try:
+            return RedisRateLimitBackend.from_url(url)
+        except Exception as exc:
+            logger.warning("Redis rate-limit backend unavailable (%s); using in-memory", exc)
+    return InMemoryRateLimitBackend()
 
 
 def set_backend(backend: RateLimitBackend) -> None:

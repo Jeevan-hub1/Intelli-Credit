@@ -8,8 +8,9 @@ derived from the structured inputs, so the pipeline runs end-to-end.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
+from config.settings import settings
 from models.scoring import ComplianceCheck, LitigationCase, LitigationReport
 from utils.logging import get_logger
 
@@ -55,13 +56,19 @@ def check_mca21_compliance(
     *,
     filings: Optional[list[dict]] = None,
     directors: Optional[list[dict]] = None,
+    fetcher: Optional[Callable[[Optional[str]], dict]] = None,
 ) -> ComplianceCheck:
     """Verify MCA21 statutory compliance (Requirement 7).
 
     `filings`: [{type, due_date, filed (bool)}]; `directors`: [{din, name,
-    disqualified (bool)}]. These come from a live MCA21 pull or supplied data.
+    disqualified (bool)}]. When neither is supplied and an MCA21 API key is
+    configured, data is pulled live from MCA21 (or the injected `fetcher`).
     """
     result = ComplianceCheck(cin=cin)
+    if filings is None and directors is None and settings.mca21_api_key:
+        pulled = (fetcher or _mca21_live_fetch)(cin)
+        filings = pulled.get("filings", [])
+        directors = pulled.get("directors", [])
     filings = filings or []
     directors = directors or []
 
@@ -95,13 +102,17 @@ def search_ecourts(
     director_names: Optional[list[str]] = None,
     *,
     cases: Optional[list[dict]] = None,
+    fetcher: Optional[Callable[[str, Optional[list[str]]], list[dict]]] = None,
 ) -> LitigationReport:
     """Search eCourts for litigation and categorize results (Requirement 8).
 
-    `cases`: [{case_id, category, title, status, monetary_value}] from a live
-    eCourts query or supplied data.
+    `cases`: [{case_id, category, title, status, monetary_value}]. When not
+    supplied and an eCourts API key is configured, cases are pulled live from
+    eCourts (or the injected `fetcher`).
     """
     report = LitigationReport()
+    if cases is None and settings.ecourts_api_key:
+        cases = (fetcher or _ecourts_live_fetch)(company_name, director_names)
     for c in cases or []:
         category = str(c.get("category", "civil")).lower()
         title = str(c.get("title", ""))
@@ -135,3 +146,41 @@ def search_ecourts(
         report.ibc_count,
     )
     return report
+
+
+def _mca21_live_fetch(cin: Optional[str]) -> dict:  # pragma: no cover - live network + API key
+    """Pull filings and director status from the live MCA21 API."""
+    import httpx
+
+    headers = {"Authorization": f"Bearer {settings.mca21_api_key}"}
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(
+                f"{settings.mca21_api_url}/v1/company/{cin}/compliance", headers=headers
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            return {"filings": body.get("filings", []), "directors": body.get("directors", [])}
+    except Exception as exc:
+        logger.warning("MCA21 live fetch failed for %s: %s", cin, exc)
+        return {"filings": [], "directors": []}
+
+
+def _ecourts_live_fetch(
+    company_name: str, director_names: Optional[list[str]]
+) -> list[dict]:  # pragma: no cover - live network + API key
+    """Query the live eCourts API for litigation involving the borrower."""
+    import httpx
+
+    headers = {"Authorization": f"Bearer {settings.ecourts_api_key}"}
+    params = {"party": company_name}
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(
+                f"{settings.ecourts_api_url}/v1/cases", headers=headers, params=params
+            )
+            resp.raise_for_status()
+            return resp.json().get("cases", [])
+    except Exception as exc:
+        logger.warning("eCourts live fetch failed for '%s': %s", company_name, exc)
+        return []
