@@ -9,7 +9,10 @@ recommendation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from services.score_model import ScoreModel
 
 from models.application import LoanRequest
 from models.bank import BankStatement
@@ -508,8 +511,17 @@ def recommend(
     return Recommendation.REJECT
 
 
-def synthesize(ctx: ScoringContext, notes: Optional[list[QualitativeNote]] = None) -> CreditScore:
-    """Compute the overall credit score from all Five Cs (Requirement 14)."""
+def synthesize(
+    ctx: ScoringContext,
+    notes: Optional[list[QualitativeNote]] = None,
+    model: Optional["ScoreModel"] = None,
+) -> CreditScore:
+    """Compute the overall credit score from all Five Cs (Requirement 14).
+
+    By default the overall score is the transparent weighted sum. Passing a
+    trained `ScoreModel` (Requirement 25) computes the overall score from the
+    dimensions + context features instead, keeping the heuristic as the default.
+    """
     dimensions = [
         score_character(ctx),
         score_capacity(ctx),
@@ -520,7 +532,16 @@ def synthesize(ctx: ScoringContext, notes: Optional[list[QualitativeNote]] = Non
     if notes:
         apply_qualitative_notes(dimensions, notes)
 
-    overall = round(sum(d.score * d.weight for d in dimensions), 2)
+    if model is not None:
+        features = {
+            "industry_growth_pct": ctx.industry_growth_pct,
+            "industry_ebitda_margin": ctx.industry_ebitda_margin,
+            "promoter_score": ctx.promoter_score,
+            "regulatory_risk": ctx.regulatory_risk,
+        }
+        overall = round(clamp(model.predict_overall(dimensions, features)), 2)
+    else:
+        overall = round(sum(d.score * d.weight for d in dimensions), 2)
     band = score_to_risk_band(overall)
     critical = [d.dimension for d in dimensions if d.is_critical_weakness]
 

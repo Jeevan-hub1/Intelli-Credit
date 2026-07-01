@@ -43,6 +43,13 @@ def _seed_admin() -> None:
 async def lifespan(app: FastAPI):
     init_db()
     _seed_admin()
+    # Select the distributed rate-limit backend (Redis) when configured.
+    from api import deps
+    from services import secrets
+
+    deps.set_backend(deps.select_rate_limit_backend())
+    secrets.set_provider(secrets.select_provider())
+    secrets.require_strong_secrets()
     logger.info(
         "%s started (env=%s, model=%s)", settings.app_name, settings.app_env, settings.model_version
     )
